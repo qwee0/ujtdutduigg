@@ -38,6 +38,7 @@
 </head>
 <body>
     <div class="score">Счёт: <span id="scoreValue">0</span></div>
+    <div class="score">Жизни: <span id="livesValue">3</span></div>
     <canvas id="gameCanvas" width="400" height="400"></canvas>
     <div class="controls">
         Управление: стрелки на клавиатуре<br>
@@ -48,33 +49,22 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('scoreValue');
+        const livesElement = document.getElementById('livesValue');
         
         // Размер одной клетки
         const gridSize = 20;
         const tileCount = canvas.width / gridSize;
         
-        // Начальная позиция змейки
-        let snake = [
-            {x: 10, y: 10},
-            {x: 9, y: 10},
-            {x: 8, y: 10}
-        ];
-        
-        // Направление движения
+        // Переменные игры
+        let snake = [];
         let dx = 1;
         let dy = 0;
-        
-        // Позиция еды
-        let food = {
-            x: Math.floor(Math.random() * tileCount),
-            y: Math.floor(Math.random() * tileCount)
-        };
-        
-        // Счёт
+        let food = {};
         let score = 0;
-        
-        // Флаг начала игры
         let gameStarted = false;
+        let lives = 3;
+        let totalScore = 0;
+        let roundScore = 0;
         
         // Игровой цикл
         function gameLoop() {
@@ -85,14 +75,14 @@
             
             // Проверка на столкновение со стенами
             if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
-                gameOver();
+                handleWallCollision();
                 return;
             }
             
             // Проверка на столкновение с самой собой
             for (let i = 0; i < snake.length; i++) {
                 if (head.x === snake[i].x && head.y === snake[i].y) {
-                    gameOver();
+                    handleSelfCollision();
                     return;
                 }
             }
@@ -101,13 +91,56 @@
             
             // Проверка: съела ли змейка еду
             if (head.x === food.x && head.y === food.y) {
-                score++;
+                roundScore++;
+                score = roundScore;
                 scoreElement.textContent = score;
                 generateFood();
             } else {
                 snake.pop();
             }
             
+            draw();
+            setTimeout(gameLoop, 100);
+        }
+        
+        // Обработка столкновения со стеной
+        function handleWallCollision() {
+            lives--;
+            livesElement.textContent = lives;
+            
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                startNewRound();
+            }
+        }
+        
+        // Обработка столкновения с самой собой
+        function handleSelfCollision() {
+            lives--;
+            livesElement.textContent = lives;
+            
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                startNewRound();
+            }
+        }
+        
+        // Начало нового раунда
+        function startNewRound() {
+            snake = [
+                {x: 10, y: 10},
+                {x: 9, y: 10},
+                {x: 8, y: 10}
+            ];
+            dx = 1;
+            dy = 0;
+            roundScore = 0;
+            score = 0;
+            scoreElement.textContent = score;
+            generateFood();
+            gameStarted = true;
             draw();
             setTimeout(gameLoop, 100);
         }
@@ -148,12 +181,15 @@
         // Конец игры
         function gameOver() {
             gameStarted = false;
+            totalScore += roundScore;
             ctx.fillStyle = 'white';
             ctx.font = '30px Arial';
             ctx.textAlign = 'center';
             ctx.fillText('Игра окончена!', canvas.width / 2, canvas.height / 2);
+            ctx.font = '20px Arial';
+            ctx.fillText('Общий счёт: ' + totalScore, canvas.width / 2, canvas.height / 2 + 30);
             ctx.font = '16px Arial';
-            ctx.fillText('Нажмите пробел для рестарта', canvas.width / 2, canvas.height / 2 + 30);
+            ctx.fillText('Нажмите пробел для новой игры', canvas.width / 2, canvas.height / 2 + 55);
         }
         
         // Рестарт игры
@@ -165,8 +201,12 @@
             ];
             dx = 1;
             dy = 0;
+            lives = 3;
+            totalScore = 0;
+            roundScore = 0;
             score = 0;
             scoreElement.textContent = score;
+            livesElement.textContent = lives;
             generateFood();
             gameStarted = true;
             draw();
@@ -177,6 +217,12 @@
         document.addEventListener('keydown', function(event) {
             if (!gameStarted && event.code !== 'Space') {
                 gameStarted = true;
+                snake = [
+                    {x: 10, y: 10},
+                    {x: 9, y: 10},
+                    {x: 8, y: 10}
+                ];
+                generateFood();
                 gameLoop();
             }
             

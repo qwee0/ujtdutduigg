@@ -27,10 +27,11 @@ RIGHT = (1, 0)
 
 
 class SnakeGame:
-    def __init__(self, width: int = 20, height: int = 15, speed: float = 0.15):
+    def __init__(self, width: int = 20, height: int = 15, speed: float = 0.15, max_food: int = 20):
         self.width = width
         self.height = height
         self.speed = speed
+        self.max_food = max_food  # Максимальное количество еды на поле
         self.score = 0
         self.game_over = False
         self.running = True
@@ -46,8 +47,9 @@ class SnakeGame:
         self.direction = RIGHT
         self.next_direction = RIGHT
         
-        # Генерация первой еды
-        self.food = self._generate_food()
+        # Генерация начального набора еды (до max_food)
+        self.food_list: List[Tuple[int, int]] = []
+        self._spawn_food()
         
         # Поток для ввода с клавиатуры
         self._setup_keyboard()
@@ -138,13 +140,24 @@ class SnakeGame:
                 import termios
                 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
     
+    def _spawn_food(self):
+        """Добавление еды на поле до max_food"""
+        while len(self.food_list) < self.max_food:
+            pos = self._generate_food()
+            if pos:
+                self.food_list.append(pos)
+    
     def _generate_food(self) -> Tuple[int, int]:
-        """Генерация еды в случайном месте, не занятом змейкой"""
-        while True:
+        """Генерация еды в случайном месте, не занятом змейкой или другой едой"""
+        attempts = 0
+        max_attempts = 100
+        while attempts < max_attempts:
             x = random.randint(1, self.width - 2)
             y = random.randint(1, self.height - 2)
-            if (x, y) not in self.snake:
+            if (x, y) not in self.snake and (x, y) not in self.food_list:
                 return (x, y)
+            attempts += 1
+        return None  # Если не удалось найти место
     
     def _draw(self):
         """Отрисовка игрового поля"""
@@ -159,9 +172,10 @@ class SnakeGame:
             field[y][0] = WALL
             field[y][self.width - 1] = WALL
         
-        # Рисуем еду
-        fx, fy = self.food
-        field[fy][fx] = FOOD
+        # Рисуем всю еду из списка
+        for fx, fy in self.food_list:
+            if 0 <= fx < self.width and 0 <= fy < self.height:
+                field[fy][fx] = FOOD
         
         # Рисуем змейку
         for i, (x, y) in enumerate(self.snake):
@@ -210,11 +224,18 @@ class SnakeGame:
         # Добавление новой головы
         self.snake.insert(0, new_head)
         
-        # Проверка: съела ли змейка еду
-        if new_head == self.food:
-            self.score += 1
-            self.food = self._generate_food()
-            # Змейка удлиняется (не удаляем хвост)
+        # Проверка: съела ли змейка еду (любую из списка)
+        ate_food = False
+        for i, food_pos in enumerate(self.food_list):
+            if new_head == food_pos:
+                self.food_list.pop(i)
+                self.score += 1
+                ate_food = True
+                break
+        
+        if ate_food:
+            # Змейка удлиняется (не удаляем хвост), добавляем новую еду
+            self._spawn_food()
         else:
             # Удаляем хвост (движение без роста)
             self.snake.pop()

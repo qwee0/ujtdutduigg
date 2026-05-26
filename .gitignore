@@ -1,1 +1,1 @@
-(empty)
+Nothing needs to be added to .gitignore since only a single HTML file (`snake.html`) was added, which is a source code file and should not be ignored.
